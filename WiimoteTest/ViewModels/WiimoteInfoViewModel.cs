@@ -15,6 +15,7 @@ namespace WiimoteTest.ViewModels
         private WiimoteStateData wmStateData = new WiimoteStateData();
         public WiimoteStateData WmStateData => wmStateData;
         public event EventHandler WmStateDataChanged;
+        public event EventHandler WmStateDataPreprocess;
         public string DevicePath
         {
             get; set;
@@ -47,6 +48,8 @@ namespace WiimoteTest.ViewModels
         private void Wm_WiimoteChanged(object? sender, WiimoteChangedEventArgs e)
         {
             //stateWriteLock.EnterWriteLock();
+
+            WmStateDataPreprocess?.Invoke(this, EventArgs.Empty);
 
             WiimoteState ws = e.WiimoteState;
 
@@ -86,19 +89,53 @@ namespace WiimoteTest.ViewModels
             wmStateData.IR4EllipseTop = (int)((IRCanvasHeight + 3 + 3) * (wmStateData.IR4Y / 767.0) - 3);
             wmStateData.IR4EllipseLeft = (int)((-3 - IRCanvasWidth + 3) * (wmStateData.IR4X / 1023.0) + (IRCanvasWidth + 3));
 
-            wmStateData.IRMidActive = wmStateData.IR1Active && wmStateData.IR2Active;
-            if (wmStateData.IRMidActive)
+            int pointCount = 0;
+            for (int i = 0; i < 4; i++)
             {
-                wmStateData.IRMidEllipseTop = (int)((IRCanvasHeight + 3 + 3) * (ws.IRState.RawMidpoint.Y / 767.0) - 3);
-                wmStateData.IRMidEllipseLeft = (int)((-3 - IRCanvasWidth + 3) * (ws.IRState.RawMidpoint.X / 1023.0) + (IRCanvasWidth + 3));
+                if (ws.IRState.IRSensors[i].Found)
+                {
+                    pointCount++;
+                }
             }
 
-            wmStateData.IRMidX = ws.IRState.RawMidpoint.X;
-            wmStateData.IRMidY = ws.IRState.RawMidpoint.Y;
-            wmStateData.IRMidNormX = ws.IRState.Midpoint.X;
-            wmStateData.IRMidNormY = ws.IRState.Midpoint.Y;
-            wmStateData.IRMidStr = ws.IRState.RawMidpoint.ToString();
-            wmStateData.IRMidNormStr = ws.IRState.Midpoint.ToString();
+            wmStateData.IRMidActive = pointCount >= 2;
+            int rawMidpointX = 0; int rawMidpointY = 0;
+            float midpointX = 0.0f; float midpointY = 0.0f;
+            if (wmStateData.IRMidActive)
+            {
+                int tempX = 0;  int tempY = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    IRSensor currentSensor = ws.IRState.IRSensors[i];
+                    if (currentSensor.Found)
+                    {
+                        tempX += currentSensor.RawPosition.X;
+                        tempY += currentSensor.RawPosition.Y;
+                    }
+                }
+
+                rawMidpointX = tempX / pointCount;
+                rawMidpointY = tempY / pointCount;
+                midpointX = rawMidpointX / 1023.0f;
+                midpointY = rawMidpointY / 767.0f;
+
+                wmStateData.IRMidEllipseTop = (int)((IRCanvasHeight + 3 + 3) * (rawMidpointY / 767.0) - 3);
+                wmStateData.IRMidEllipseLeft = (int)((-3 - IRCanvasWidth + 3) * (rawMidpointX / 1023.0) + (IRCanvasWidth + 3));
+            }
+
+            wmStateData.IRMidX = rawMidpointX;
+            wmStateData.IRMidY = rawMidpointY;
+            wmStateData.IRMidNormX = midpointX;
+            wmStateData.IRMidNormY = midpointY;
+            wmStateData.IRMidStr = $"{{X={rawMidpointX}, Y={rawMidpointY}}}";
+            wmStateData.IRMidNormStr = $"{{X={midpointX}, Y={midpointY}}}";
+
+            //wmStateData.IRMidX = ws.IRState.RawMidpoint.X;
+            //wmStateData.IRMidY = ws.IRState.RawMidpoint.Y;
+            //wmStateData.IRMidNormX = ws.IRState.Midpoint.X;
+            //wmStateData.IRMidNormY = ws.IRState.Midpoint.Y;
+            //wmStateData.IRMidStr = ws.IRState.RawMidpoint.ToString();
+            //wmStateData.IRMidNormStr = ws.IRState.Midpoint.ToString();
 
             wmStateData.Battery = ws.Battery;
             wmStateData.WiimoteAccelValues = ws.AccelState.Values.ToString();

@@ -40,13 +40,23 @@ namespace WiimoteTest
             DataContext = wiiInfoVM;
 
             wiiInfoVM.WmStateDataChanged += WiiInfoVM_WmStateDataChanged;
+            //wiiInfoVM.WmStateDataPreprocess += WiiInfoVM_WmStateDataPreprocess;
+        }
+
+        private void WiiInfoVM_WmStateDataPreprocess(object? sender, EventArgs e)
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                //DataContext = null;
+                //DataContext = wiiInfoVM;
+            });
         }
 
         private void WiiInfoVM_WmStateDataChanged(object? sender, EventArgs e)
         {
             Dispatcher.BeginInvoke(() =>
             {
-                DataContext = null;
+                //DataContext = null;
                 DataContext = wiiInfoVM;
             });
         }
